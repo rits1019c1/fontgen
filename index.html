@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Font Creator</title>
+    <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d0d0f;
+            --surface: #16161a;
+            --surface2: #1e1e24;
+            --border: #2a2a35;
+            --accent: #7c6af7;
+            --accent2: #e85d4a;
+            --text: #e8e8f0;
+            --muted: #5a5a72;
+            --success: #4caf79;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Space Mono', monospace;
+            min-height: 100vh;
+        }
+
+        /* NAV */
+        nav {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(13,13,15,0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .nav-title {
+            font-size: 14px; font-weight: 700; letter-spacing: 0.1em;
+            color: var(--accent);
+        }
+        #status {
+            font-size: 11px; letter-spacing: 0.08em;
+            color: var(--muted);
+        }
+        #status.active { color: var(--accent); }
+        #status.done   { color: var(--success); }
+        #status.error  { color: var(--accent2); }
+
+        /* MAIN */
+        main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 80px; }
+
+        h1 {
+            font-size: clamp(24px, 4vw, 40px);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 6px;
+            background: linear-gradient(120deg, var(--text), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            font-size: 12px; color: var(--muted); margin-bottom: 32px;
+            font-family: 'Noto Sans JP', sans-serif;
+        }
+
+        /* CONTROLS */
+        .controls {
+            display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
+            margin-bottom: 24px;
+            padding: 20px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+        label.ctrl-label {
+            font-size: 10px; letter-spacing: 0.12em; color: var(--muted);
+            display: block; margin-bottom: 6px; text-transform: uppercase;
+        }
+        input[type="text"] {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-family: 'Space Mono', monospace;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus { border-color: var(--accent); }
+
+        .btn {
+            padding: 9px 18px; border-radius: 8px; font-size: 12px;
+            font-family: 'Space Mono', monospace; font-weight: 700;
+            cursor: pointer; border: 1px solid var(--border);
+            letter-spacing: 0.05em; transition: all 0.15s;
+        }
+        .btn-ghost {
+            background: transparent; color: var(--muted);
+        }
+        .btn-ghost:hover { color: var(--text); border-color: var(--text); }
+        .btn-accent {
+            background: var(--accent); color: #fff; border-color: var(--accent);
+        }
+        .btn-accent:hover { filter: brightness(1.15); }
+        .btn-accent:active { transform: scale(0.97); }
+        .btn-warn {
+            background: transparent; color: var(--accent2); border-color: var(--accent2);
+        }
+        .btn-warn:hover { background: var(--accent2); color: #fff; }
+
+        /* FILTER BAR */
+        .filter-bar {
+            display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;
+        }
+        .filter-btn {
+            padding: 5px 12px; border-radius: 20px; font-size: 11px;
+            cursor: pointer; border: 1px solid var(--border);
+            background: transparent; color: var(--muted);
+            font-family: 'Space Mono', monospace; transition: all 0.15s;
+        }
+        .filter-btn:hover, .filter-btn.active {
+            background: var(--accent); color: #fff; border-color: var(--accent);
+        }
+        #searchInput {
+            flex: 1; min-width: 160px; height: 32px;
+            padding: 0 12px; font-size: 12px;
+        }
+
+        /* STATS */
+        .stats-bar {
+            display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;
+        }
+        .stat {
+            font-size: 11px; color: var(--muted);
+        }
+        .stat span { color: var(--accent); font-weight: 700; }
+
+        /* GRID */
+        #mappingContainer {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 8px;
+            max-height: 60vh;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        #mappingContainer::-webkit-scrollbar { width: 4px; }
+        #mappingContainer::-webkit-scrollbar-track { background: var(--bg); }
+        #mappingContainer::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        .mapping-row {
+            display: flex; align-items: center; gap: 6px;
+            padding: 8px 10px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            transition: border-color 0.15s;
+        }
+        .mapping-row:hover { border-color: var(--accent); }
+        .mapping-row.has-value { border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+
+        .key-label {
+            font-size: 11px; font-weight: 700; color: var(--accent);
+            min-width: 36px; text-align: center;
+            background: var(--bg);
+            border-radius: 4px; padding: 2px 4px;
+            font-family: 'Noto Sans JP', monospace;
+            border: 1px solid var(--border);
+        }
+        .mapping-symbol {
+            flex: 1; background: transparent; border: none;
+            color: var(--text); font-size: 16px;
+            outline: none; min-width: 0;
+            font-family: 'Noto Sans JP', serif;
+        }
+        .mapping-symbol::placeholder { color: var(--muted); font-size: 11px; }
+
+        /* PREVIEW */
+        #previewSection {
+            margin-top: 24px;
+            padding: 20px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+        #previewArea {
+            width: 100%; height: 120px;
+            background: var(--bg);
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 32px;
+            padding: 12px;
+            resize: vertical;
+            outline: none;
+        }
+        #previewArea:focus { border-color: var(--accent); }
+
+        /* LOG */
+        #logSection {
+            margin-top: 16px;
+            padding: 12px 16px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 11px;
+            color: var(--muted);
+            max-height: 120px;
+            overflow-y: auto;
+            display: none;
+        }
+        .log-line { line-height: 1.8; }
+        .log-line.ok { color: var(--success); }
+        .log-line.err { color: var(--accent2); }
+
+        /* PROGRESS */
+        #progressBar {
+            height: 2px; background: var(--accent);
+            width: 0%; transition: width 0.3s;
+            border-radius: 1px; margin-bottom: 12px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="nav-title">▸ FONT CREATOR</div>
+    <div id="status">READY</div>
+</nav>
+
+<main>
+    <h1>Char-to-Symbol Mapper</h1>
+    <p class="subtitle">キーに記号を割り当てて独自OTFフォントを生成 — 584文字対応</p>
+
+    <div class="controls">
+        <div>
+            <label class="ctrl-label">フォント名</label>
+            <input type="text" id="fontName" value="MyCustomFont" style="width:200px">
+        </div>
+        <div style="flex:1"></div>
+        <button class="btn btn-ghost" id="randomizeAll">🎲 ランダム埋め</button>
+        <button class="btn btn-ghost" id="clearAll">✕ 全クリア</button>
+        <button class="btn btn-accent" id="generateFont">▶ フォント生成</button>
+    </div>
+
+    <div class="filter-bar">
+        <button class="filter-btn active" data-group="all">すべて</button>
+        <button class="filter-btn" data-group="alpha">A-Z / a-z</button>
+        <button class="filter-btn" data-group="num">0-9 / 記号</button>
+        <button class="filter-btn" data-group="hira">ひらがな</button>
+        <button class="filter-btn" data-group="kata">カタカナ</button>
+        <button class="filter-btn" data-group="kanji">漢字</button>
+        <button class="filter-btn" data-group="filled">入力済み</button>
+        <input type="text" id="searchInput" class="filter-btn" placeholder="🔍 文字を検索..." style="border-radius:8px">
+    </div>
+
+    <div class="stats-bar">
+        <div class="stat">合計: <span id="statTotal">0</span></div>
+        <div class="stat">入力済み: <span id="statFilled">0</span></div>
+        <div class="stat">表示中: <span id="statVisible">0</span></div>
+    </div>
+
+    <div id="progressBar"></div>
+    <div id="mappingContainer"></div>
+
+    <div id="previewSection" style="display:none">
+        <label class="ctrl-label" style="margin-bottom:10px">ライブプレビュー</label>
+        <textarea id="previewArea" placeholder="フォント生成後にここで入力テスト..."></textarea>
+        <p style="font-size:10px; color:var(--muted); margin-top:6px">生成後に割り当てたキーを入力すると反映されます</p>
+    </div>
+
+    <div id="logSection"></div>
+</main>
+
+<script>
+// ── 対象文字 ─────────────────────────────────────────────
+const TARGET_CHARS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'z', 'y', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '^', '\\', '¥', '@', '[', ']', ':', ';', ',', '.', '/', '!', '"', '#', '$', '%', '&', "'", '(', ')', '=', '~', '}', '{', '`', '*', '+', '?', '>', '<', 'あ', 'い', 'う', 'え', 'か', 'が', 'き', 'ぎ', 'く', 'ぐ', 'け', 'げ', 'こ', 'さ', 'ざ', 'し', 'じ', 'す', 'ず', 'せ', 'そ', 'ぞ', 'た', 'だ', 'ち', 'っ', 'つ', 'づ', 'て', 'で', 'と', 'な', 'に', 'の', 'は', 'ひ', 'ぶ', 'へ', 'べ', 'ま', 'む', 'め', 'も', 'や', 'ょ', 'よ', 'ら', 'り', 'る', 'れ', 'ろ', 'わ', 'を', 'ん', '゛', 'ァ', 'ア', 'ィ', 'イ', 'ェ', 'エ', 'ォ', 'オ', 'カ', 'ギ', 'ク', 'グ', 'コ', 'ゴ', 'サ', 'シ', 'ジ', 'ス', 'ズ', 'セ', 'ゼ', 'タ', 'ダ', 'チ', 'ッ', 'ツ', 'テ', 'デ', 'ト', 'ド', 'ナ', 'ニ', 'ネ', 'ノ', 'バ', 'パ', 'ビ', 'フ', 'ブ', 'プ', 'ポ', 'マ', 'ム', 'メ', 'モ', 'ャ', 'ュ', 'ユ', 'ョ', 'ラ', 'リ', 'ル', 'レ', 'ロ', 'ワ', 'ン', 'ヴ', 'ー', '一', '上', '下', '不', '世', '中', '主', '九', '了', '事', '二', '享', '人', '今', '他', '付', '代', '会', '伝', '位', '住', '体', '何', '作', '使', '供', '依', '価', '保', '値', '停', '健', '側', '傘', '元', '先', '入', '全', '八', '公', '共', '典', '内', '再', '出', '切', '初', '判', '利', '制', '剥', '創', '力', '動', '勢', '包', '化', '十', '原', '去', '及', '収', '取', '受', '口', '古', '可', '史', '号', '合', '同', '名', '向', '味', '呼', '咀', '和', '品', '哲', '唯', '問', '喋', '喜', '嘲', '嚼', '四', '団', '図', '固', '国', '在', '均', '型', '域', '基', '報', '場', '塑', '墓', '壁', '売', '変', '外', '大', '失', '始', '字', '存', '孤', '学', '守', '完', '宗', '定', '宝', '実', '家', '容', '対', '尊', '小', '常', '年', '広', '座', '康', '廃', '建', '式', '形', '彩', '律', '後', '得', '御', '徴', '思', '性', '情', '想', '意', '愕', '感', '態', '憶', '成', '我', '戻', '所', '手', '抑', '抜', '抽', '拒', '括', '持', '振', '捉', '接', '推', '掲', '描', '撃', '支', '改', '放', '敗', '教', '文', '断', '既', '日', '昇', '明', '時', '普', '暗', '最', '有', '未', '条', '来', '東', '析', '架', '柔', '核', '極', '榜', '構', '標', '機', '止', '歴', '残', '氏', '民', '汚', '決', '泉', '法', '洋', '活', '海', '消', '深', '淵', '温', '測', '源', '準', '漂', '演', '潜', '点', '無', '然', '片', '物', '特', '状', '独', '現', '理', '璧', '生', '用', '界', '異', '疑', '発', '登', '白', '百', '的', '監', '知', '破', '確', '社', '祖', '禁', '私', '科', '秒', '秘', '称', '移', '種', '究', '空', '突', '立', '笑', '第', '答', '策', '算', '管', '築', '粋', '糧', '系', '約', '純', '紙', '級', '紡', '終', '組', '経', '給', '統', '絶', '継', '続', '網', '練', '繰', '置', '羅', '美', '群', '義', '考', '者', '肉', '能', '脳', '自', '色', '芸', '荷', '華', '薦', '薬', '行', '術', '衝', '表', '製', '複', '要', '見', '規', '視', '覗', '観', '解', '触', '言', '計', '記', '訪', '設', '試', '詩', '話', '認', '誕', '語', '説', '読', '論', '謎', '識', '護', '象', '負', '財', '販', '資', '質', '超', '越', '跡', '身', '軟', '転', '込', '返', '追', '送', '途', '通', '造', '週', '進', '遇', '過', '道', '達', '適', '遭', '選', '部', '配', '里', '重', '鋭', '録', '鍛', '鑑', '閉', '開', '間', '限', '陣', '陸', '際', '隠', '集', '雑', '静', '音', '領', '食', '駄', '験', '驚', '高'];
+
+const SYMBOLS = [
+    '⌘','⌥','⇧','⌃','⎋','⏏','⏚','⏛','⏻','⏼','⏽','⭘',
+    '✉︎','📩','📨','📫','📪','📬','📭','📮','📁','📂','📄','📃','📅','📆','📇','📋','📌','📍','📎','🖇','📏','📐','📑','📒','📓','📔','📕','📖','🔖','✎','✍','✒','✂','📊','📈','📉','📜',
+    '←','↑','→','↓','↔','↕','↖','↗','↘','↙','↩','↪','↺','↻','⇐','⇑','⇒','⇓','⇔','⇦','⇧','⇨','⇩','➔','➘','➙','➚','➛','➜','➝','➞','➟','➠','➡','➢','➣','➤','➥','➦','➧','➨','➩','➪','➫','➬','➭','➮','➯','➲','➳','➴','➵','➶','➷','➸','➹','➺','➻','➼','➽','➾','⤴','⤵',
+    '■','□','▢','▣','▲','△','▶','▷','▼','▽','◀','◁','◆','◇','◈','◉','◎','⦿','⊕','⊗','⊘','⊙','⊚','⊛','⊜','⊝','⊞','⊟','⊠','⊡','⊿','◯','◦','◸','◹','◺','◻','◼','◽','◾','◿','⬛','⬜','⬡','⬢','⬣','⬤','⬥','⬦',
+    '★','☆','✦','✧','✩','✪','✫','✬','✭','✮','✯','✰','✱','✲','✳','✴','✵','✷','✸','✹','✺','✻','✼','✽','✾','✿','❀','❁','❂','❃','❄','❅','❆','❇','❈','❉','❊','❋','⚝','⛤','⛥','⛦','⛧',
+    '✔','✅','☑','✘','❌','☒','❎','✓','✕','✖','✗','☓','±','÷','×',
+    '☀','☁','☂','☃','☄','☇','☈','☉','☊','☋','☌','☍','☎','☏','⚡','✨','🌟','🌙','☽','☾',
+    '⚔','⚓','✈','⚽','🎾','🎱','🎲','♟','♔','♕','♖','♗','♘','♙','♚','♛','♜','♝','♞','♟','♠','♡','♢','♣','♤','♥','♦','♧','♨','♩','♪','♫','♬','♭','♮','♯',
+    'π','∞','∑','∏','∆','∇','∂','∫','∬','∭','∮','∯','∰','∀','∃','∄','∅','∈','∉','∋','∌','∗','∘','∙','√','∛','∜','∝','∠','∟','∧','∨','∩','∪','≈','≠','≡','≤','≥','≦','≧','≪','≫','⊂','⊃','⊄','⊅','⊆','⊇','∴','∵','∶','∷','∼','∽','∾','∿',
+    '☠','☢','☣','☤','☥','☦','☧','☨','☩','☪','☫','☬','☭','☮','☯','☸','☹','☺','☻','☼','♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓','♾','♿','⚕','⚖','⚗','⚛','⚜','⚠','✌','⛓','⚒','⛏','🛠','🛡'
+];
+
+// グループ分け
+function getGroup(ch) {
+    const cp = ch.codePointAt(0);
+    if ((cp >= 65 && cp <= 90) || (cp >= 97 && cp <= 122)) return 'alpha';
+    if ((cp >= 48 && cp <= 57) || cp < 128) return 'num';
+    if (cp >= 0x3041 && cp <= 0x309F) return 'hira';
+    if (cp >= 0x30A0 && cp <= 0x30FF) return 'kata';
+    if (cp >= 0x4E00 && cp <= 0x9FFF) return 'kanji';
+    return 'other';
+}
+
+// ── DOM refs ─────────────────────────────────────────────
+const container    = document.getElementById('mappingContainer');
+const statusEl     = document.getElementById('status');
+const logSection   = document.getElementById('logSection');
+const previewSec   = document.getElementById('previewSection');
+const previewArea  = document.getElementById('previewArea');
+const progressBar  = document.getElementById('progressBar');
+const statTotal    = document.getElementById('statTotal');
+const statFilled   = document.getElementById('statFilled');
+const statVisible  = document.getElementById('statVisible');
+
+// state
+let currentGroup   = 'all';
+let currentSearch  = '';
+
+// ── Build rows ────────────────────────────────────────────
+const rows = []; // {char, input, row}
+
+TARGET_CHARS.forEach(ch => {
+    const row = document.createElement('div');
+    row.className = 'mapping-row';
+    row.dataset.char  = ch;
+    row.dataset.group = getGroup(ch);
+
+    const label = document.createElement('span');
+    label.className = 'key-label';
+    label.textContent = ch;
+
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.className = 'mapping-symbol';
+    inp.placeholder = '記号';
+    inp.addEventListener('input', () => {
+        row.classList.toggle('has-value', inp.value.trim().length > 0);
+        updateStats();
+    });
+
+    row.appendChild(label);
+    row.appendChild(inp);
+    container.appendChild(row);
+    rows.push({ char: ch, input: inp, row });
+});
+
+statTotal.textContent = rows.length;
+
+function updateStats() {
+    const filled = rows.filter(r => r.input.value.trim().length > 0).length;
+    statFilled.textContent = filled;
+    const vis = rows.filter(r => r.row.style.display !== 'none').length;
+    statVisible.textContent = vis;
+}
+
+function applyFilter() {
+    rows.forEach(({ char, row }) => {
+        const grp   = row.dataset.group;
+        const inp   = row.querySelector('.mapping-symbol');
+        const matchGroup = currentGroup === 'all'
+            || grp === currentGroup
+            || (currentGroup === 'filled' && inp.value.trim().length > 0);
+        const matchSearch = currentSearch === '' || char.includes(currentSearch);
+        row.style.display = (matchGroup && matchSearch) ? '' : 'none';
+    });
+    updateStats();
+}
+
+// ── Filter buttons ─────────────────────────────────────────
+document.querySelectorAll('.filter-btn[data-group]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn[data-group]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentGroup = btn.dataset.group;
+        applyFilter();
+    });
+});
+
+document.getElementById('searchInput').addEventListener('input', e => {
+    currentSearch = e.target.value.trim();
+    applyFilter();
+});
+
+// ── Random fill ───────────────────────────────────────────
+document.getElementById('randomizeAll').addEventListener('click', () => {
+    const visRows = rows.filter(r => r.row.style.display !== 'none');
+    visRows.forEach(({ input, row }) => {
+        const sym = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+        input.value = sym;
+        row.classList.add('has-value');
+    });
+    updateStats();
+    log(`表示中の ${visRows.length} 個をランダム埋め`, 'ok');
+});
+
+// ── Clear all ─────────────────────────────────────────────
+document.getElementById('clearAll').addEventListener('click', () => {
+    rows.forEach(({ input, row }) => {
+        input.value = '';
+        row.classList.remove('has-value');
+    });
+    updateStats();
+    log('全クリア', '');
+});
+
+// ── Log ───────────────────────────────────────────────────
+function log(msg, type = '') {
+    logSection.style.display = 'block';
+    const div = document.createElement('div');
+    div.className = `log-line ${type}`;
+    div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    logSection.appendChild(div);
+    logSection.scrollTop = logSection.scrollHeight;
+}
+
+function setStatus(text, cls) {
+    statusEl.textContent = text;
+    statusEl.className   = cls;
+}
+
+// ── Generate font ─────────────────────────────────────────
+document.getElementById('generateFont').addEventListener('click', async () => {
+    const fontName = document.getElementById('fontName').value || 'CustomFont';
+    const filled = rows.filter(r => r.input.value.trim().length > 0);
+
+    if (filled.length === 0) {
+        log('記号が入力されていません。', 'err');
+        return;
+    }
+
+    setStatus('LOADING...', 'active');
+    progressBar.style.display = 'block';
+    progressBar.style.width = '0%';
+    log(`フォント生成開始: ${filled.length}文字をマッピング`);
+
+    try {
+        // フォント取得
+        const fontUrl = 'https://fonts.gstatic.com/s/notosansjp/v52/-Ky77e3otC2qvS-Mdcun4Kn9S7bw.otf';
+        log('ベースフォントを取得中...');
+        const res    = await fetch(fontUrl);
+        const buf    = await res.arrayBuffer();
+        const base   = opentype.parse(buf);
+        progressBar.style.width = '30%';
+
+        const glyphs = [];
+        glyphs.push(new opentype.Glyph({
+            name: '.notdef', unicode: 0,
+            advanceWidth: 650, path: new opentype.Path()
+        }));
+
+        log('グリフ変換中...');
+        const total = filled.length;
+        filled.forEach(({ char, input }, i) => {
+            const sym = input.value.trim();
+            if (!sym) return;
+            try {
+                const path = base.getPath(sym, 0, 800, 1000);
+                glyphs.push(new opentype.Glyph({
+                    name: `char_${char.codePointAt(0)}`,
+                    unicode: char.codePointAt(0),
+                    advanceWidth: 700,
+                    path
+                }));
+            } catch(e) {
+                log(`警告: '${char}' → '${sym}' 変換失敗 (${e.message})`, 'err');
+            }
+            progressBar.style.width = `${30 + (i / total) * 60}%`;
+        });
+
+        const font = new opentype.Font({
+            familyName: fontName,
+            styleName:  'Regular',
+            unitsPerEm: 1000,
+            ascender:   800,
+            descender:  -200,
+            glyphs
+        });
+
+        const fontBuf  = font.toArrayBuffer();
+        const blob     = new Blob([fontBuf], { type: 'font/opentype' });
+        const blobUrl  = URL.createObjectURL(blob);
+
+        // プレビュー適用
+        const face = new FontFace('__preview__', `url(${blobUrl})`);
+        await face.load();
+        document.fonts.add(face);
+        previewArea.style.fontFamily = "'__preview__', 'Noto Sans JP', sans-serif";
+        previewArea.value = filled.map(r => r.char).join('');
+        previewSec.style.display = 'block';
+
+        // ダウンロード
+        font.download(`${fontName}.otf`);
+        progressBar.style.width = '100%';
+
+        setStatus('DONE ✓', 'done');
+        log(`完了! ${glyphs.length - 1} グリフを生成 → ${fontName}.otf`, 'ok');
+
+        setTimeout(() => { progressBar.style.display = 'none'; }, 1000);
+
+    } catch(err) {
+        console.error(err);
+        log(`エラー: ${err.message}`, 'err');
+        setStatus('ERROR', 'error');
+        progressBar.style.display = 'none';
+    }
+});
+
+// init
+updateStats();
+applyFilter();
+</script>
+</body>
+</html>

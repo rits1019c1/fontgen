@@ -233,7 +233,7 @@
 
 <main>
     <h1>Char-to-Symbol Mapper</h1>
-    <p class="subtitle">キーに記号を割り当てて独自OTFフォントを生成 — 584文字対応</p>
+    <p class="subtitle">キーに記号を割り当てて独自OTFフォントを生成 — 606文字対応</p>
 
     <div class="controls">
         <div>
@@ -277,7 +277,7 @@
 
 <script>
 // ── 対象文字 ─────────────────────────────────────────────
-const TARGET_CHARS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'z', 'y', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '^', '\\', '¥', '@', '[', ']', ':', ';', ',', '.', '/', '!', '"', '#', '$', '%', '&', "'", '(', ')', '=', '~', '}', '{', '`', '*', '+', '?', '>', '<', 'あ', 'い', 'う', 'え', 'か', 'が', 'き', 'ぎ', 'く', 'ぐ', 'け', 'げ', 'こ', 'さ', 'ざ', 'し', 'じ', 'す', 'ず', 'せ', 'そ', 'ぞ', 'た', 'だ', 'ち', 'っ', 'つ', 'づ', 'て', 'で', 'と', 'な', 'に', 'の', 'は', 'ひ', 'ぶ', 'へ', 'べ', 'ま', 'む', 'め', 'も', 'や', 'ょ', 'よ', 'ら', 'り', 'る', 'れ', 'ろ', 'わ', 'を', 'ん', '゛', 'ァ', 'ア', 'ィ', 'イ', 'ェ', 'エ', 'ォ', 'オ', 'カ', 'ギ', 'ク', 'グ', 'コ', 'ゴ', 'サ', 'シ', 'ジ', 'ス', 'ズ', 'セ', 'ゼ', 'タ', 'ダ', 'チ', 'ッ', 'ツ', 'テ', 'デ', 'ト', 'ド', 'ナ', 'ニ', 'ネ', 'ノ', 'バ', 'パ', 'ビ', 'フ', 'ブ', 'プ', 'ポ', 'マ', 'ム', 'メ', 'モ', 'ャ', 'ュ', 'ユ', 'ョ', 'ラ', 'リ', 'ル', 'レ', 'ロ', 'ワ', 'ン', 'ヴ', 'ー', '一', '上', '下', '不', '世', '中', '主', '九', '了', '事', '二', '享', '人', '今', '他', '付', '代', '会', '伝', '位', '住', '体', '何', '作', '使', '供', '依', '価', '保', '値', '停', '健', '側', '傘', '元', '先', '入', '全', '八', '公', '共', '典', '内', '再', '出', '切', '初', '判', '利', '制', '剥', '創', '力', '動', '勢', '包', '化', '十', '原', '去', '及', '収', '取', '受', '口', '古', '可', '史', '号', '合', '同', '名', '向', '味', '呼', '咀', '和', '品', '哲', '唯', '問', '喋', '喜', '嘲', '嚼', '四', '団', '図', '固', '国', '在', '均', '型', '域', '基', '報', '場', '塑', '墓', '壁', '売', '変', '外', '大', '失', '始', '字', '存', '孤', '学', '守', '完', '宗', '定', '宝', '実', '家', '容', '対', '尊', '小', '常', '年', '広', '座', '康', '廃', '建', '式', '形', '彩', '律', '後', '得', '御', '徴', '思', '性', '情', '想', '意', '愕', '感', '態', '憶', '成', '我', '戻', '所', '手', '抑', '抜', '抽', '拒', '括', '持', '振', '捉', '接', '推', '掲', '描', '撃', '支', '改', '放', '敗', '教', '文', '断', '既', '日', '昇', '明', '時', '普', '暗', '最', '有', '未', '条', '来', '東', '析', '架', '柔', '核', '極', '榜', '構', '標', '機', '止', '歴', '残', '氏', '民', '汚', '決', '泉', '法', '洋', '活', '海', '消', '深', '淵', '温', '測', '源', '準', '漂', '演', '潜', '点', '無', '然', '片', '物', '特', '状', '独', '現', '理', '璧', '生', '用', '界', '異', '疑', '発', '登', '白', '百', '的', '監', '知', '破', '確', '社', '祖', '禁', '私', '科', '秒', '秘', '称', '移', '種', '究', '空', '突', '立', '笑', '第', '答', '策', '算', '管', '築', '粋', '糧', '系', '約', '純', '紙', '級', '紡', '終', '組', '経', '給', '統', '絶', '継', '続', '網', '練', '繰', '置', '羅', '美', '群', '義', '考', '者', '肉', '能', '脳', '自', '色', '芸', '荷', '華', '薦', '薬', '行', '術', '衝', '表', '製', '複', '要', '見', '規', '視', '覗', '観', '解', '触', '言', '計', '記', '訪', '設', '試', '詩', '話', '認', '誕', '語', '説', '読', '論', '謎', '識', '護', '象', '負', '財', '販', '資', '質', '超', '越', '跡', '身', '軟', '転', '込', '返', '追', '送', '途', '通', '造', '週', '進', '遇', '過', '道', '達', '適', '遭', '選', '部', '配', '里', '重', '鋭', '録', '鍛', '鑑', '閉', '開', '間', '限', '陣', '陸', '際', '隠', '集', '雑', '静', '音', '領', '食', '駄', '験', '驚', '高'];
+const TARGET_CHARS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '^', '\\', '¥', '@', '[', ']', ':', ';', ',', '.', '/', '!', '"', '#', '$', '%', '&', "'", '(', ')', '=', '~', '}', '{', '`', '*', '+', '?', '>', '<', 'あ', 'い', 'う', 'え', 'お', 'か', 'が', 'き', 'ぎ', 'く', 'ぐ', 'け', 'げ', 'こ', 'ご', 'さ', 'ざ', 'し', 'じ', 'す', 'ず', 'せ', 'ぜ', 'そ', 'ぞ', 'た', 'だ', 'ち', 'ぢ', 'っ', 'つ', 'づ', 'て', 'で', 'と', 'ど', 'な', 'に', 'ぬ', 'ね', 'の', 'は', 'ば', 'ぱ', 'ひ', 'び', 'ぴ', 'ふ', 'ぶ', 'ぷ', 'へ', 'べ', 'ぺ', 'ほ', 'ぼ', 'ぽ', 'ま', 'み', 'む', 'め', 'も', 'や', 'ゆ', 'ょ', 'よ', 'ら', 'り', 'る', 'れ', 'ろ', 'わ', 'を', 'ん', '゛', 'ァ', 'ア', 'ィ', 'イ', 'ェ', 'エ', 'ォ', 'オ', 'カ', 'ギ', 'ク', 'グ', 'コ', 'ゴ', 'サ', 'シ', 'ジ', 'ス', 'ズ', 'セ', 'ゼ', 'タ', 'ダ', 'チ', 'ッ', 'ツ', 'テ', 'デ', 'ト', 'ド', 'ナ', 'ニ', 'ネ', 'ノ', 'バ', 'パ', 'ビ', 'フ', 'ブ', 'プ', 'ポ', 'マ', 'ム', 'メ', 'モ', 'ャ', 'ュ', 'ユ', 'ョ', 'ラ', 'リ', 'ル', 'レ', 'ロ', 'ワ', 'ン', 'ヴ', 'ー', '一', '上', '下', '不', '世', '中', '主', '九', '了', '事', '二', '享', '人', '今', '他', '付', '代', '会', '伝', '位', '住', '体', '何', '作', '使', '供', '依', '価', '保', '値', '停', '健', '側', '傘', '元', '先', '入', '全', '八', '公', '共', '典', '内', '再', '出', '切', '初', '判', '利', '制', '剥', '創', '力', '動', '勢', '包', '化', '十', '原', '去', '及', '収', '取', '受', '口', '古', '可', '史', '号', '合', '同', '名', '向', '味', '呼', '咀', '和', '品', '哲', '唯', '問', '喋', '喜', '嘲', '嚼', '四', '団', '図', '固', '国', '在', '均', '型', '域', '基', '報', '場', '塑', '墓', '壁', '売', '変', '外', '大', '失', '始', '字', '存', '孤', '学', '守', '完', '宗', '定', '宝', '実', '家', '容', '対', '尊', '小', '常', '年', '広', '座', '康', '廃', '建', '式', '形', '彩', '律', '後', '得', '御', '徴', '思', '性', '情', '想', '意', '愕', '感', '態', '憶', '成', '我', '戻', '所', '手', '抑', '抜', '抽', '拒', '括', '持', '振', '捉', '接', '推', '掲', '描', '撃', '支', '改', '放', '敗', '教', '文', '断', '既', '日', '昇', '明', '時', '普', '暗', '最', '有', '未', '条', '来', '東', '析', '架', '柔', '核', '極', '榜', '構', '標', '機', '止', '歴', '残', '氏', '民', '汚', '決', '泉', '法', '洋', '活', '海', '消', '深', '淵', '温', '測', '源', '準', '漂', '演', '潜', '点', '無', '然', '片', '物', '特', '状', '独', '現', '理', '璧', '生', '用', '界', '異', '疑', '発', '登', '白', '百', '的', '監', '知', '破', '確', '社', '祖', '禁', '私', '科', '秒', '秘', '称', '移', '種', '究', '空', '突', '立', '笑', '第', '答', '策', '算', '管', '築', '粋', '糧', '系', '約', '純', '紙', '級', '紡', '終', '組', '経', '給', '統', '絶', '継', '続', '網', '練', '繰', '置', '羅', '美', '群', '義', '考', '者', '肉', '能', '脳', '自', '色', '芸', '荷', '華', '薦', '薬', '行', '術', '衝', '表', '製', '複', '要', '見', '規', '視', '覗', '観', '解', '触', '言', '計', '記', '訪', '設', '試', '詩', '話', '認', '誕', '語', '説', '読', '論', '謎', '識', '護', '象', '負', '財', '販', '資', '質', '超', '越', '跡', '身', '軟', '転', '込', '返', '追', '送', '途', '通', '造', '週', '進', '遇', '過', '道', '達', '適', '遭', '選', '部', '配', '里', '重', '鋭', '録', '鍛', '鑑', '閉', '開', '間', '限', '陣', '陸', '際', '隠', '集', '雑', '静', '音', '領', '食', '駄', '験', '驚', '高'];
 
 const SYMBOLS = [
     '⌘','⌥','⇧','⌃','⎋','⏏','⏚','⏛','⏻','⏼','⏽','⭘',
@@ -420,67 +420,134 @@ function setStatus(text, cls) {
     statusEl.className   = cls;
 }
 
+// ── Canvas → opentype Path 変換 ───────────────────────────
+// 指定文字をCanvasに描画し、ピクセルをトレースしてopentype.Pathを生成する
+// （ベースフォントのfetchが不要なのでCORSエラーを回避）
+
+const GLYPH_SIZE   = 128;   // Canvas描画サイズ (px)
+const UPM          = 1000;  // Units Per Em
+const ASCENDER     = 800;
+const SCALE        = UPM / GLYPH_SIZE;
+
+// Canvas 1枚を使い回す
+const _canvas  = document.createElement('canvas');
+_canvas.width  = GLYPH_SIZE;
+_canvas.height = GLYPH_SIZE;
+const _ctx     = _canvas.getContext('2d', { willReadFrequently: true });
+
+/**
+ * 文字列 sym を描画してopentype.Path（矩形集合近似）を返す。
+ * 精度よりも確実性を優先したビットマップトレース方式。
+ */
+function symToPath(sym) {
+    const S   = GLYPH_SIZE;
+    _ctx.clearRect(0, 0, S, S);
+    _ctx.fillStyle = '#000';
+    _ctx.font = `${Math.floor(S * 0.8)}px "Noto Sans JP", serif`;
+    _ctx.textAlign    = 'center';
+    _ctx.textBaseline = 'middle';
+    _ctx.fillText(sym, S / 2, S / 2);
+
+    const imgData = _ctx.getImageData(0, 0, S, S).data;
+    const path    = new opentype.Path();
+
+    const THRESH = 64; // アルファ閾値
+    const MERGE  = 2;  // 近傍ピクセルをまとめる粒度 (px単位)
+
+    for (let py = 0; py < S; py += MERGE) {
+        for (let px = 0; px < S; px += MERGE) {
+            // MERGExMERGE ブロックにひとつでも不透明ピクセルがあれば矩形追加
+            let hit = false;
+            outer: for (let dy = 0; dy < MERGE && py + dy < S; dy++) {
+                for (let dx = 0; dx < MERGE && px + dx < S; dx++) {
+                    const idx = ((py + dy) * S + (px + dx)) * 4;
+                    if (imgData[idx + 3] > THRESH) { hit = true; break outer; }
+                }
+            }
+            if (!hit) continue;
+
+            // フォント座標系に変換 (Y軸反転、アセンダー基準)
+            const fx = px       * SCALE;
+            const fy = ASCENDER - (py + MERGE) * SCALE;
+            const fw = MERGE    * SCALE;
+            const fh = MERGE    * SCALE;
+
+            path.moveTo(fx,      fy);
+            path.lineTo(fx + fw, fy);
+            path.lineTo(fx + fw, fy + fh);
+            path.lineTo(fx,      fy + fh);
+            path.close();
+        }
+    }
+    return path;
+}
+
 // ── Generate font ─────────────────────────────────────────
 document.getElementById('generateFont').addEventListener('click', async () => {
     const fontName = document.getElementById('fontName').value || 'CustomFont';
-    const filled = rows.filter(r => r.input.value.trim().length > 0);
+    const filled   = rows.filter(r => r.input.value.trim().length > 0);
 
     if (filled.length === 0) {
         log('記号が入力されていません。', 'err');
         return;
     }
 
-    setStatus('LOADING...', 'active');
+    setStatus('GENERATING...', 'active');
     progressBar.style.display = 'block';
-    progressBar.style.width = '0%';
+    progressBar.style.width   = '0%';
     log(`フォント生成開始: ${filled.length}文字をマッピング`);
 
-    try {
-        // フォント取得
-        const fontUrl = 'https://fonts.gstatic.com/s/notosansjp/v52/-Ky77e3otC2qvS-Mdcun4Kn9S7bw.otf';
-        log('ベースフォントを取得中...');
-        const res    = await fetch(fontUrl);
-        const buf    = await res.arrayBuffer();
-        const base   = opentype.parse(buf);
-        progressBar.style.width = '30%';
+    // UIをブロックしないよう非同期で処理
+    await new Promise(r => setTimeout(r, 16));
 
+    try {
         const glyphs = [];
         glyphs.push(new opentype.Glyph({
             name: '.notdef', unicode: 0,
             advanceWidth: 650, path: new opentype.Path()
         }));
 
-        log('グリフ変換中...');
+        log('ビットマップトレース中...');
         const total = filled.length;
-        filled.forEach(({ char, input }, i) => {
+
+        for (let i = 0; i < total; i++) {
+            const { char, input } = filled[i];
             const sym = input.value.trim();
-            if (!sym) return;
+            if (!sym) continue;
+
             try {
-                const path = base.getPath(sym, 0, 800, 1000);
+                const path = symToPath(sym);
                 glyphs.push(new opentype.Glyph({
-                    name: `char_${char.codePointAt(0)}`,
-                    unicode: char.codePointAt(0),
-                    advanceWidth: 700,
+                    name:         `u${char.codePointAt(0).toString(16).padStart(4,'0')}`,
+                    unicode:      char.codePointAt(0),
+                    advanceWidth: 750,
                     path
                 }));
             } catch(e) {
-                log(`警告: '${char}' → '${sym}' 変換失敗 (${e.message})`, 'err');
+                log(`警告: '${char}' → '${sym}' 失敗 (${e.message})`, 'err');
             }
-            progressBar.style.width = `${30 + (i / total) * 60}%`;
-        });
+
+            // 50件ごとにUIへ制御を返す
+            if (i % 50 === 0) {
+                progressBar.style.width = `${(i / total) * 90}%`;
+                await new Promise(r => setTimeout(r, 0));
+            }
+        }
+
+        log(`グリフ数: ${glyphs.length - 1} / フォントオブジェクト構築中...`);
 
         const font = new opentype.Font({
             familyName: fontName,
             styleName:  'Regular',
-            unitsPerEm: 1000,
-            ascender:   800,
+            unitsPerEm: UPM,
+            ascender:   ASCENDER,
             descender:  -200,
             glyphs
         });
 
-        const fontBuf  = font.toArrayBuffer();
-        const blob     = new Blob([fontBuf], { type: 'font/opentype' });
-        const blobUrl  = URL.createObjectURL(blob);
+        const fontBuf = font.toArrayBuffer();
+        const blob    = new Blob([fontBuf], { type: 'font/opentype' });
+        const blobUrl = URL.createObjectURL(blob);
 
         // プレビュー適用
         const face = new FontFace('__preview__', `url(${blobUrl})`);
@@ -495,9 +562,8 @@ document.getElementById('generateFont').addEventListener('click', async () => {
         progressBar.style.width = '100%';
 
         setStatus('DONE ✓', 'done');
-        log(`完了! ${glyphs.length - 1} グリフを生成 → ${fontName}.otf`, 'ok');
-
-        setTimeout(() => { progressBar.style.display = 'none'; }, 1000);
+        log(`完了! ${glyphs.length - 1} グリフ生成 → ${fontName}.otf をダウンロード中`, 'ok');
+        setTimeout(() => { progressBar.style.display = 'none'; }, 1200);
 
     } catch(err) {
         console.error(err);

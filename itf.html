@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Symbol Font Studio - Turbo Pro</title>
+    <!-- OG Tags -->
+    <meta property="og:title" content="Symbol Font Studio - Turbo Pro">
+    <meta property="og:description" content="高度な画像解析と並列処理を搭載。複数画像を高速にプロポーショナルフォントへ変換します。">
+    <meta property="og:type" content="website">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        .glyph-card { transition: all 0.2s; border: 2px dashed #cbd5e1; position: relative; overflow: hidden; }
+        .glyph-card:hover { border-color: #3b82f6; background-color: #ffffff; }
+        .glyph-card.active { border-color: #3b82f6; background-color: #ffffff; border-style: solid; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        .processing-overlay { background: rgba(255,255,255,0.8); display: flex; align-items: center; justify-content: center; }
+        canvas { display: none; }
+        .preview-text { font-size: 3.5rem; line-height: 1.2; }
+        input[type="range"] { accent-color: #2563eb; }
+        .drop-zone-active { border: 4px solid #3b82f6 !important; background-color: #eff6ff !important; }
+    </style>
+</head>
+<body class="p-4 md:p-8 text-slate-800">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-8 text-center">
+            <h1 class="text-4xl font-extrabold text-slate-900 mb-2 italic">Symbol Font Studio <span class="text-blue-600">Turbo</span></h1>
+            <p class="text-slate-600 font-medium">高度な2値化と並列処理で、大量の画像を一気にフォントへ変換</p>
+        </header>
+
+        <div class="bg-white p-6 rounded-2xl shadow-sm mb-8 border border-slate-200">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-end">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">フォント名</label>
+                    <input type="text" id="fontName" value="TurboSymbolFont" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">画像解析エンジン</label>
+                    <div class="flex gap-2">
+                        <select id="resolution" class="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="64" selected>標準 (64px)</option>
+                            <option value="96">高精細 (96px)</option>
+                            <option value="128">超高精細 (128px)</option>
+                        </select>
+                        <input type="range" id="threshold" min="0" max="255" value="180" class="w-24">
+                    </div>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
+                        <input type="checkbox" id="removeBorders" checked class="w-4 h-4 text-blue-600 rounded">
+                        外枠 & ノイズを自動除去
+                    </label>
+                    <button onclick="document.getElementById('bulkUpload').click()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-4 rounded-lg text-sm transition-all shadow-md active:scale-95">
+                        一括アップロード (並列処理)
+                    </button>
+                    <input type="file" id="bulkUpload" class="hidden" multiple accept="image/*" onchange="handleBulkFiles(event)">
+                </div>
+                <div>
+                    <button onclick="exportOTF()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-lg transition-all shadow-md active:scale-95">
+                        OTF書き出し
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 進行状況インジケーター -->
+        <div id="progressContainer" class="hidden mb-4 bg-white p-4 rounded-xl border border-blue-100 shadow-sm">
+            <div class="flex justify-between text-xs font-bold text-blue-600 mb-1">
+                <span id="progressLabel">処理中...</span>
+                <span id="progressPercent">0%</span>
+            </div>
+            <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                <div id="progressBar" class="bg-blue-500 h-full w-0 transition-all duration-300"></div>
+            </div>
+        </div>
+
+        <div id="grid" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3 mb-10 min-h-[300px] border-2 border-transparent rounded-2xl transition-all" 
+             ondragover="event.preventDefault(); this.classList.add('drop-zone-active')" 
+             ondragleave="this.classList.remove('drop-zone-active')" 
+             ondrop="handleDrop(event)">
+        </div>
+
+        <div class="bg-slate-900 text-white p-8 rounded-2xl shadow-xl">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2 text-blue-400">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                レンダリングプレビュー
+            </h2>
+            <input type="text" id="previewInput" placeholder="ここに入力してテスト..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-5 py-3 text-white text-lg mb-6 focus:ring-2 focus:ring-blue-400 outline-none">
+            <div id="fontPreviewDisplay" class="preview-text min-h-[140px] p-6 bg-slate-800/50 rounded-xl border border-slate-700/50 flex flex-wrap gap-4 items-center justify-center break-all text-center">
+                <span class="text-slate-500">画像をセットしてください</span>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="procCanvas"></canvas>
+
+    <script>
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".split("");
+        const glyphData = {}; 
+        const canvas = document.getElementById('procCanvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        // UI初期化
+        const grid = document.getElementById('grid');
+        chars.forEach(char => {
+            const div = document.createElement('div');
+            div.id = `card-${char}`;
+            div.className = 'glyph-card bg-white rounded-xl p-2 flex flex-col items-center justify-center cursor-pointer aspect-square text-xs';
+            div.innerHTML = `
+                <span class="text-[10px] font-bold text-slate-400 absolute top-1 left-1.5 uppercase">${char}</span>
+                <div id="preview-${char}" class="w-full h-full flex items-center justify-center text-slate-200">
+                    <span class="text-xl font-bold opacity-10">${char}</span>
+                </div>
+                <input type="file" id="file-${char}" class="hidden" accept="image/*" onclick="event.stopPropagation()" onchange="handleSingleFile('${char}', event)">
+            `;
+            div.onclick = () => document.getElementById(`file-${char}`).click();
+            grid.appendChild(div);
+        });
+
+        async function handleSingleFile(char, event) {
+            const file = event.target.files[0];
+            if (file) await readAndProcess(char, file);
+        }
+
+        async function handleBulkFiles(event) {
+            const files = Array.from(event.target.files).sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
+            await processMultipleFiles(files);
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            grid.classList.remove('drop-zone-active');
+            const files = Array.from(event.dataTransfer.files).filter(f => f.type.startsWith('image/')).sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
+            processMultipleFiles(files);
+        }
+
+        // 並列処理エンジンの強化
+        async function processMultipleFiles(files) {
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            const progressPercent = document.getElementById('progressPercent');
+            
+            progressContainer.classList.remove('hidden');
+            let completed = 0;
+            const total = Math.min(files.length, chars.length);
+
+            // 並列実行用のプロミス配列を作成
+            const tasks = [];
+            for (let i = 0; i < total; i++) {
+                const task = (async () => {
+                    await readAndProcess(chars[i], files[i]);
+                    completed++;
+                    const pc = Math.round((completed / total) * 100);
+                    progressBar.style.width = pc + '%';
+                    progressPercent.innerText = pc + '%';
+                })();
+                tasks.push(task);
+            }
+
+            await Promise.all(tasks);
+            setTimeout(() => progressContainer.classList.add('hidden'), 1000);
+            updateFontPreview();
+        }
+
+        function readAndProcess(char, file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        processImage(char, img);
+                        resolve();
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function processImage(char, img) {
+            const res = parseInt(document.getElementById('resolution').value);
+            const thresholdInput = parseInt(document.getElementById('threshold').value);
+            const doRemoveBorders = document.getElementById('removeBorders').checked;
+            
+            canvas.width = res;
+            canvas.height = res;
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, res, res);
+            
+            const margin = Math.floor(res * 0.05);
+            const drawRes = res - (margin * 2);
+            const scale = Math.min(drawRes / img.width, drawRes / img.height);
+            const x = (res - img.width * scale) / 2;
+            const y = (res - img.height * scale) / 2;
+            ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+
+            const imageData = ctx.getImageData(0, 0, res, res);
+            const data = imageData.data;
+            
+            // --- 高度な2値化アルゴリズム (コントラスト正規化) ---
+            let minLum = 255, maxLum = 0;
+            for (let i = 0; i < data.length; i += 4) {
+                if (data[i+3] < 50) continue; 
+                const lum = (data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114);
+                if (lum < minLum) minLum = lum;
+                if (lum > maxLum) maxLum = lum;
+            }
+
+            let binaryGrid = Array(res).fill().map(() => Array(res).fill(0));
+            for (let i = 0; i < res; i++) {
+                for (let j = 0; j < res; j++) {
+                    const idx = (i * res + j) * 4;
+                    const r = data[idx], g = data[idx+1], b = data[idx+2], a = data[idx+3];
+                    if (a < 50) continue;
+                    
+                    const lum = (r * 0.299 + g * 0.587 + b * 0.114);
+                    // 正規化された輝度で判定
+                    const normalizedLum = (maxLum === minLum) ? lum : ((lum - minLum) / (maxLum - minLum)) * 255;
+                    
+                    if (normalizedLum < thresholdInput) {
+                        binaryGrid[i][j] = 1;
+                    }
+                }
+            }
+
+            // --- 連結成分解析 (枠線 & ノイズ除去) ---
+            if (doRemoveBorders) {
+                let visited = Array(res).fill().map(() => Array(res).fill(false));
+                const components = [];
+                for (let i = 0; i < res; i++) {
+                    for (let j = 0; j < res; j++) {
+                        if (binaryGrid[i][j] === 1 && !visited[i][j]) {
+                            let queue = [[i, j]];
+                            visited[i][j] = true;
+                            let pixels = [];
+                            let touchesEdge = false;
+                            const eT = 2; // Edge threshold
+                            while(queue.length > 0) {
+                                let [r, c] = queue.shift();
+                                pixels.push([r, c]);
+                                if (r <= eT || r >= res-1-eT || c <= eT || c >= res-1-eT) touchesEdge = true;
+                                [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dr, dc]) => {
+                                    let nr = r + dr, nc = c + dc;
+                                    if (nr >= 0 && nr < res && nc >= 0 && nc < res && binaryGrid[nr][nc] === 1 && !visited[nr][nc]) {
+                                        visited[nr][nc] = true;
+                                        queue.push([nr, nc]);
+                                    }
+                                });
+                            }
+                            components.push({ pixels, touchesEdge, size: pixels.length });
+                        }
+                    }
+                }
+                
+                // ノイズ（極小の島）と外枠を消去
+                components.forEach(comp => {
+                    // 1. 端に触れている（枠） 2. あまりに小さい（ノイズ、しきい値は解像度の0.5%以下）
+                    const isNoise = comp.size < (res * res) * 0.005;
+                    if ((comp.touchesEdge && comp.size < (res * res) * 0.6) || isNoise) {
+                        comp.pixels.forEach(([r, c]) => binaryGrid[r][c] = 0);
+                    }
+                });
+            }
+
+            // プロポーショナル計算
+            let minX = res, maxX = 0;
+            let hasPixels = false;
+            for (let i = 0; i < res; i++) {
+                for (let j = 0; j < res; j++) {
+                    if (binaryGrid[i][j] === 1) {
+                        if (j < minX) minX = j;
+                        if (j > maxX) maxX = j;
+                        hasPixels = true;
+                    }
+                }
+            }
+
+            const paths = [];
+            const cellSize = 1000 / res;
+            const previewCanvas = document.createElement('canvas');
+            previewCanvas.width = res; previewCanvas.height = res;
+            const pCtx = previewCanvas.getContext('2d');
+            pCtx.fillStyle = "black";
+
+            for (let i = 0; i < res; i++) {
+                for (let j = 0; j < res; j++) {
+                    if (binaryGrid[i][j] === 1) {
+                        paths.push({x: (j - minX) * cellSize, y: (res - i) * cellSize});
+                        pCtx.fillRect(j, i, 1, 1);
+                    }
+                }
+            }
+
+            const sideBearing = res * 0.03;
+            let advanceWidth = hasPixels ? (maxX - minX + sideBearing * 2) * cellSize : 500;
+            advanceWidth = Math.max(advanceWidth, 200);
+            glyphData[char] = { paths: paths, width: advanceWidth };
+            
+            const preview = document.getElementById(`preview-${char}`);
+            preview.innerHTML = `<img src="${previewCanvas.toDataURL()}" class="w-full h-full object-contain">`;
+            document.getElementById(`card-${char}`).classList.add('active');
+        }
+
+        function createFont() {
+            const fontName = document.getElementById('fontName').value || 'TurboFont';
+            const res = parseInt(document.getElementById('resolution').value);
+            const cellSize = 1000 / res;
+            const glyphs = [new opentype.Glyph({ name: '.notdef', unicode: 0, advanceWidth: 600, path: new opentype.Path() })];
+
+            chars.forEach(char => {
+                const p = new opentype.Path();
+                let width = 1000;
+                if (glyphData[char]) {
+                    width = glyphData[char].width;
+                    glyphData[char].paths.forEach(pixel => {
+                        p.moveTo(pixel.x, pixel.y);
+                        p.lineTo(pixel.x + cellSize, pixel.y);
+                        p.lineTo(pixel.x + cellSize, pixel.y - cellSize);
+                        p.lineTo(pixel.x, pixel.y - cellSize);
+                        p.close();
+                    });
+                }
+                glyphs.push(new opentype.Glyph({ name: char, unicode: char.charCodeAt(0), advanceWidth: width, path: p }));
+            });
+
+            return new opentype.Font({ familyName: fontName, styleName: 'Medium', unitsPerEm: 1000, ascender: 800, descender: -200, glyphs: glyphs });
+        }
+
+        function updateFontPreview() {
+            const font = createFont();
+            const text = document.getElementById('previewInput').value || "ABC";
+            const display = document.getElementById('fontPreviewDisplay');
+            if (Object.keys(glyphData).length === 0) return;
+            const buffer = font.toArrayBuffer();
+            const blob = new Blob([buffer], {type: 'font/opentype'});
+            const url = URL.createObjectURL(blob);
+            const fontFace = new FontFace('TempFont', `url(${url})`);
+            fontFace.load().then(f => {
+                document.fonts.add(f);
+                display.style.fontFamily = 'TempFont';
+                display.innerText = text;
+            });
+        }
+
+        function exportOTF() {
+            if (Object.keys(glyphData).length === 0) { alert("画像を読み込んでください"); return; }
+            const font = createFont();
+            font.download(`${document.getElementById('fontName').value}.otf`);
+        }
+        
+        document.getElementById('previewInput').oninput = updateFontPreview;
+        document.getElementById('threshold').oninput = updateFontPreview;
+    </script>
+</body>
+</html>

@@ -26,7 +26,7 @@
 
     <div class="max-w-6xl mx-auto">
         <header class="mb-8 text-center">
-            <h1 class="text-4xl font-extrabold text-slate-900 mb-2 italic">Symbol Font Studio <span class="text-blue-600">Turbo</span></h1>
+            <h1 class="text-4xl font-extrabold text-slate-900 mb-2 italic">Symbol Font Studio <span class="text-blue-600">Turbo</span> <span class="text-lg font-semibold text-slate-400 not-italic">v1.0</span></h1>
             <p class="text-slate-600 font-medium">高度な2値化と並列処理で、大量の画像を一気にフォントへ変換</p>
         </header>
 
@@ -256,47 +256,65 @@
                 }
             }
 
-            // --- 連結成分解析 (枠線 & ノイズ除去) ---
+            // --- 枠線除去: 外周flood fillで「外側の背景」を特定し、前景と直接隣接するものだけ消す ---
             if (doRemoveBorders) {
-                let visited = Array(res).fill().map(() => Array(res).fill(false));
-                const components = [];
+                // Step1: 外周から背景(0)領域をflood fillで「外側マーク」
+                const outerMask = Array(res).fill().map(() => Array(res).fill(false));
+                const bgQueue = [];
+                for (let i = 0; i < res; i++) {
+                    if (binaryGrid[i][0] === 0 && !outerMask[i][0])   { outerMask[i][0] = true;   bgQueue.push([i, 0]); }
+                    if (binaryGrid[i][res-1] === 0 && !outerMask[i][res-1]) { outerMask[i][res-1] = true; bgQueue.push([i, res-1]); }
+                }
+                for (let j = 0; j < res; j++) {
+                    if (binaryGrid[0][j] === 0 && !outerMask[0][j])   { outerMask[0][j] = true;   bgQueue.push([0, j]); }
+                    if (binaryGrid[res-1][j] === 0 && !outerMask[res-1][j]) { outerMask[res-1][j] = true; bgQueue.push([res-1, j]); }
+                }
+                while (bgQueue.length > 0) {
+                    const [r, c] = bgQueue.shift();
+                    [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dr, dc]) => {
+                        const nr = r+dr, nc = c+dc;
+                        if (nr>=0&&nr<res&&nc>=0&&nc<res && !outerMask[nr][nc] && binaryGrid[nr][nc]===0) {
+                            outerMask[nr][nc] = true;
+                            bgQueue.push([nr, nc]);
+                        }
+                    });
+                }
+
+                // Step2: 前景コンポーネントを列挙し、outerMaskの外側背景と隣接しているものが「枠線」
+                const visited = Array(res).fill().map(() => Array(res).fill(false));
                 for (let i = 0; i < res; i++) {
                     for (let j = 0; j < res; j++) {
                         if (binaryGrid[i][j] === 1 && !visited[i][j]) {
-                            let queue = [[i, j]];
+                            const queue = [[i, j]];
                             visited[i][j] = true;
-                            let pixels = [];
-                            let edgePixelCount = 0;
-                            const eT = 2;
-                            while(queue.length > 0) {
-                                let [r, c] = queue.shift();
+                            const pixels = [];
+                            let touchesOuter = false;
+                            while (queue.length > 0) {
+                                const [r, c] = queue.shift();
                                 pixels.push([r, c]);
-                                if (r <= eT || r >= res-1-eT || c <= eT || c >= res-1-eT) edgePixelCount++;
                                 [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dr, dc]) => {
-                                    let nr = r + dr, nc = c + dc;
-                                    if (nr >= 0 && nr < res && nc >= 0 && nc < res && binaryGrid[nr][nc] === 1 && !visited[nr][nc]) {
+                                    const nr = r+dr, nc = c+dc;
+                                    if (nr<0||nr>=res||nc<0||nc>=res) return;
+                                    // 隣が外側背景 → この前景は外枠の疑い
+                                    if (outerMask[nr][nc]) touchesOuter = true;
+                                    if (binaryGrid[nr][nc]===1 && !visited[nr][nc]) {
                                         visited[nr][nc] = true;
                                         queue.push([nr, nc]);
                                     }
                                 });
                             }
-                            const edgeRatio = edgePixelCount / pixels.length;
-                            components.push({ pixels, edgeRatio, size: pixels.length });
+                            const totalPixels = res * res;
+                            // 枠線判定: 外側背景に接しており かつ 大きい（全体の15%超）
+                            // → 小さいがエッジに接した文字の一部は消さない
+                            const isBorder = touchesOuter && pixels.length > totalPixels * 0.15;
+                            // ノイズ判定: 極小（全体の0.05%未満）← 点や目も残せるよう閾値を激辛に
+                            const isNoise = pixels.length < totalPixels * 0.0005;
+                            if (isBorder || isNoise) {
+                                pixels.forEach(([r, c]) => binaryGrid[r][c] = 0);
+                            }
                         }
                     }
                 }
-
-                const totalPixels = res * res;
-                components.forEach(comp => {
-                    // ノイズ: 全体の0.3%未満の極小コンポーネント
-                    const isNoise = comp.size < totalPixels * 0.003;
-                    // 枠線: エッジへの接触率が80%超 かつ 全体の20%超を占める大きな成分
-                    // （文字のような小さい成分はエッジに少し触れても消さない）
-                    const isBorder = comp.edgeRatio > 0.8 && comp.size > totalPixels * 0.2;
-                    if (isNoise || isBorder) {
-                        comp.pixels.forEach(([r, c]) => binaryGrid[r][c] = 0);
-                    }
-                });
             }
 
             // プロポーショナル計算

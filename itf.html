@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Symbol Font Studio - Turbo Pro</title>
-    <!-- OG Tags -->
     <meta property="og:title" content="Symbol Font Studio - Turbo Pro">
     <meta property="og:description" content="高度な画像解析と並列処理を搭載。複数画像を高速にプロポーショナルフォントへ変換します。">
     <meta property="og:type" content="website">
@@ -17,7 +16,6 @@
         .glyph-card { transition: all 0.2s; border: 2px dashed #cbd5e1; position: relative; overflow: hidden; }
         .glyph-card:hover { border-color: #3b82f6; background-color: #ffffff; }
         .glyph-card.active { border-color: #3b82f6; background-color: #ffffff; border-style: solid; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
-        .processing-overlay { background: rgba(255,255,255,0.8); display: flex; align-items: center; justify-content: center; }
         canvas { display: none; }
         .preview-text { font-size: 3.5rem; line-height: 1.2; }
         input[type="range"] { accent-color: #2563eb; }
@@ -40,19 +38,28 @@
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-2">画像解析エンジン</label>
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 flex-col">
                         <select id="resolution" class="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                             <option value="64" selected>標準 (64px)</option>
                             <option value="96">高精細 (96px)</option>
                             <option value="128">超高精細 (128px)</option>
                         </select>
-                        <input type="range" id="threshold" min="0" max="255" value="180" class="w-24">
+                        <div class="flex items-center gap-2 text-xs text-slate-500">
+                            <span>閾値:</span>
+                            <input type="range" id="threshold" min="0" max="255" value="60" class="flex-1">
+                            <span id="thresholdVal">60</span>
+                        </div>
                     </div>
                 </div>
                 <div class="flex flex-col gap-2">
                     <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
                         <input type="checkbox" id="removeBorders" checked class="w-4 h-4 text-blue-600 rounded">
                         外枠 & ノイズを自動除去
+                    </label>
+                    <!-- 背景モード選択 -->
+                    <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
+                        <input type="checkbox" id="darkBgMode" class="w-4 h-4 text-blue-600 rounded">
+                        暗い背景モード（黒背景など）
                     </label>
                     <button onclick="document.getElementById('bulkUpload').click()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-4 rounded-lg text-sm transition-all shadow-md active:scale-95">
                         一括アップロード (並列処理)
@@ -67,7 +74,6 @@
             </div>
         </div>
 
-        <!-- 進行状況インジケーター -->
         <div id="progressContainer" class="hidden mb-4 bg-white p-4 rounded-xl border border-blue-100 shadow-sm">
             <div class="flex justify-between text-xs font-bold text-blue-600 mb-1">
                 <span id="progressLabel">処理中...</span>
@@ -104,6 +110,11 @@
         const canvas = document.getElementById('procCanvas');
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
+        // 閾値のリアルタイム表示
+        document.getElementById('threshold').oninput = function() {
+            document.getElementById('thresholdVal').textContent = this.value;
+        };
+
         // UI初期化
         const grid = document.getElementById('grid');
         chars.forEach(char => {
@@ -138,7 +149,6 @@
             processMultipleFiles(files);
         }
 
-        // 並列処理エンジンの強化
         async function processMultipleFiles(files) {
             const progressContainer = document.getElementById('progressContainer');
             const progressBar = document.getElementById('progressBar');
@@ -148,7 +158,6 @@
             let completed = 0;
             const total = Math.min(files.length, chars.length);
 
-            // 並列実行用のプロミス配列を作成
             const tasks = [];
             for (let i = 0; i < total; i++) {
                 const task = (async () => {
@@ -185,6 +194,7 @@
             const res = parseInt(document.getElementById('resolution').value);
             const thresholdInput = parseInt(document.getElementById('threshold').value);
             const doRemoveBorders = document.getElementById('removeBorders').checked;
+            const darkBgMode = document.getElementById('darkBgMode').checked;
             
             canvas.width = res;
             canvas.height = res;
@@ -200,15 +210,23 @@
 
             const imageData = ctx.getImageData(0, 0, res, res);
             const data = imageData.data;
-            
-            // --- 高度な2値化アルゴリズム (コントラスト正規化) ---
-            let minLum = 255, maxLum = 0;
-            for (let i = 0; i < data.length; i += 4) {
-                if (data[i+3] < 50) continue; 
-                const lum = (data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114);
-                if (lum < minLum) minLum = lum;
-                if (lum > maxLum) maxLum = lum;
+
+            // --- 背景色を推定（四隅のサンプリング） ---
+            function cornerSample(cx, cy) {
+                const idx = (cy * res + cx) * 4;
+                return [data[idx], data[idx+1], data[idx+2]];
             }
+            const corners = [
+                cornerSample(0, 0), cornerSample(res-1, 0),
+                cornerSample(0, res-1), cornerSample(res-1, res-1)
+            ];
+            const bgR = corners.reduce((s, c) => s + c[0], 0) / 4;
+            const bgG = corners.reduce((s, c) => s + c[1], 0) / 4;
+            const bgB = corners.reduce((s, c) => s + c[2], 0) / 4;
+            const bgLum = bgR * 0.299 + bgG * 0.587 + bgB * 0.114;
+
+            // 暗背景モード: チェックが入っていれば強制適用、なければ背景輝度で自動判定
+            const isInverted = darkBgMode || bgLum < 100;
 
             let binaryGrid = Array(res).fill().map(() => Array(res).fill(0));
             for (let i = 0; i < res; i++) {
@@ -216,13 +234,24 @@
                     const idx = (i * res + j) * 4;
                     const r = data[idx], g = data[idx+1], b = data[idx+2], a = data[idx+3];
                     if (a < 50) continue;
-                    
-                    const lum = (r * 0.299 + g * 0.587 + b * 0.114);
-                    // 正規化された輝度で判定
-                    const normalizedLum = (maxLum === minLum) ? lum : ((lum - minLum) / (maxLum - minLum)) * 255;
-                    
-                    if (normalizedLum < thresholdInput) {
-                        binaryGrid[i][j] = 1;
+
+                    if (isInverted) {
+                        // 暗背景モード: 背景との色差(RGBユークリッド距離)で前景を検出
+                        // 輝度ではなく色差を使うことで青なども正確に拾える
+                        const diff = Math.sqrt(
+                            (r - bgR) ** 2 +
+                            (g - bgG) ** 2 +
+                            (b - bgB) ** 2
+                        );
+                        if (diff > thresholdInput) {
+                            binaryGrid[i][j] = 1;
+                        }
+                    } else {
+                        // 明背景モード: 輝度ベース（元のロジック）
+                        const lum = r * 0.299 + g * 0.587 + b * 0.114;
+                        if (lum < thresholdInput) {
+                            binaryGrid[i][j] = 1;
+                        }
                     }
                 }
             }
@@ -237,12 +266,12 @@
                             let queue = [[i, j]];
                             visited[i][j] = true;
                             let pixels = [];
-                            let touchesEdge = false;
-                            const eT = 2; // Edge threshold
+                            let edgePixelCount = 0;
+                            const eT = 2;
                             while(queue.length > 0) {
                                 let [r, c] = queue.shift();
                                 pixels.push([r, c]);
-                                if (r <= eT || r >= res-1-eT || c <= eT || c >= res-1-eT) touchesEdge = true;
+                                if (r <= eT || r >= res-1-eT || c <= eT || c >= res-1-eT) edgePixelCount++;
                                 [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dr, dc]) => {
                                     let nr = r + dr, nc = c + dc;
                                     if (nr >= 0 && nr < res && nc >= 0 && nc < res && binaryGrid[nr][nc] === 1 && !visited[nr][nc]) {
@@ -251,16 +280,20 @@
                                     }
                                 });
                             }
-                            components.push({ pixels, touchesEdge, size: pixels.length });
+                            const edgeRatio = edgePixelCount / pixels.length;
+                            components.push({ pixels, edgeRatio, size: pixels.length });
                         }
                     }
                 }
-                
-                // ノイズ（極小の島）と外枠を消去
+
+                const totalPixels = res * res;
                 components.forEach(comp => {
-                    // 1. 端に触れている（枠） 2. あまりに小さい（ノイズ、しきい値は解像度の0.5%以下）
-                    const isNoise = comp.size < (res * res) * 0.005;
-                    if ((comp.touchesEdge && comp.size < (res * res) * 0.6) || isNoise) {
+                    // ノイズ: 全体の0.3%未満の極小コンポーネント
+                    const isNoise = comp.size < totalPixels * 0.003;
+                    // 枠線: エッジへの接触率が80%超 かつ 全体の20%超を占める大きな成分
+                    // （文字のような小さい成分はエッジに少し触れても消さない）
+                    const isBorder = comp.edgeRatio > 0.8 && comp.size > totalPixels * 0.2;
+                    if (isNoise || isBorder) {
                         comp.pixels.forEach(([r, c]) => binaryGrid[r][c] = 0);
                     }
                 });
@@ -353,7 +386,10 @@
         }
         
         document.getElementById('previewInput').oninput = updateFontPreview;
-        document.getElementById('threshold').oninput = updateFontPreview;
+        document.getElementById('threshold').oninput = function() {
+            document.getElementById('thresholdVal').textContent = this.value;
+            updateFontPreview();
+        };
     </script>
 </body>
 </html>
